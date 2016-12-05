@@ -1,5 +1,17 @@
 import Base: ==
 
+# Basic julia sugar
+
+function desugar(ex)
+  MacroTools.prewalk(ex) do ex
+    @capture(ex, (xs__,)) ? :(tuple($(xs...))) :
+    @capture(ex, xs_[i__]) ? :(getindex($xs, $(i...))) :
+    ex
+  end
+end
+
+# Constants
+
 immutable Constant{T}
   value::T
 end
@@ -28,13 +40,6 @@ tocall(::Do, a...) = :($(a...);)
 # TODO: just use `getindex` and `tuple` to represent these?
 immutable Split
   n::Int
-end
-
-function normgroups(ex)
-  MacroTools.prewalk(ex) do ex
-    @capture(ex, (xs__,)) || return ex
-    :(tuple($(xs...)))
-  end
 end
 
 # TODO: printing
