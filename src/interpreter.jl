@@ -3,13 +3,16 @@
 type Context{T}
   interp::T
   cache::ObjectIdDict
+  stack::Vector{Line}
   data::Dict{Symbol,Any}
 end
 
-Context(interp; kws...) = Context(interp, ObjectIdDict(), Dict{Symbol,Any}(kws))
+Context(interp; kws...) = Context(interp, ObjectIdDict(), Line[], Dict{Symbol,Any}(kws))
 
 Base.getindex(ctx::Context, k::Symbol) = ctx.data[k]
 Base.setindex!(ctx::Context, v, k::Symbol) = ctx.data[k] = v
+
+stack(c::Context) = copy(c.stack)
 
 function interpret(ctx::Context, graph::IVertex, args::IVertex...)
   graph = spliceinputs(graph, args...)
@@ -27,6 +30,16 @@ end
 interpret(ctx::Context, xs::Tuple) = map(x -> interpret(ctx, x), xs)
 
 # Composable interpreter pieces
+
+function interpline(f)
+  function interp(ctx::Context, l::Line, v)
+    push!(ctx.stack, l)
+    val = interpret(ctx, v)
+    pop!(ctx.stack)
+    return val
+  end
+  interp(args...) = f(args...)
+end
 
 function interpconst(f)
   interp(ctx::Context, x::Constant) = x.value
@@ -53,7 +66,7 @@ const interpid =
   interpconst((ctx, f, xs...) -> vertex(f, map(constant, interpret(ctx, xs))...))
 
 const interpeval =
-  interplambda(interpconst(interptuple((ctx, f, xs...) -> f(interpret(ctx, xs)...))))
+  interpline(interplambda(interpconst(interptuple((ctx, f, xs...) -> f(interpret(ctx, xs)...)))))
 
 interpret(graph::IVertex, args...) =
   interpret(Context(interpeval), graph, args...)
