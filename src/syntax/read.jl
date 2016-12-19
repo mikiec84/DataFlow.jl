@@ -14,15 +14,16 @@ function bindings(ex)
 end
 
 function normedges(ex)
-  ex = rmlines(ex)
   map!(ex.args) do ex
-    @capture(ex, _ = _) ? ex : :($(gensym("edge")) = $ex)
+    isline(ex) ? ex :
+    @capture(ex, _ = _) ? ex :
+    :($(gensym("edge")) = $ex)
   end
   return ex
 end
 
 normalise(ex) =
-  @> ex normsplits normclosures normedges desugar
+  @> ex normsplits normclosures normedges normlines desugar
 
 function latenodes(exs)
   bindings = d()

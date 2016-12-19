@@ -35,6 +35,32 @@ type Do end
 
 tocall(::Do, a...) = :($(a...);)
 
+# Line Numbers
+
+immutable Line
+  file::String
+  line::Int
+end
+
+const noline = Line("", -1)
+
+function Line(ex::Expr)
+  @assert ex.head == :line
+  Line(string(ex.args[2]), ex.args[1])
+end
+
+function normlines(ex)
+  line = noline
+  ex′ = :(;)
+  for ex in ex.args
+    isline(ex) && (line = Line(ex); continue)
+    line == noline && (push!(ex′.args, ex); continue)
+    @assert @capture(ex, var_ = val_)
+    push!(ex′.args, :($var = $line($val)))
+  end
+  return ex′
+end
+
 # Static tuples
 
 # TODO: just use `getindex` and `tuple` to represent these?
