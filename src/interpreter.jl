@@ -1,18 +1,24 @@
-# TODO: stack and error messages
-
 type Context{T}
   interp::T
   cache::ObjectIdDict
-  stack::Vector{Line}
+  stack::Vector{Any}
   data::Dict{Symbol,Any}
 end
 
-Context(interp; kws...) = Context(interp, ObjectIdDict(), Line[], Dict{Symbol,Any}(kws))
+Context(interp; kws...) = Context(interp, ObjectIdDict(), [], Dict{Symbol,Any}(kws))
 
 Base.getindex(ctx::Context, k::Symbol) = ctx.data[k]
 Base.setindex!(ctx::Context, v, k::Symbol) = ctx.data[k] = v
 
-stack(c::Context) = copy(c.stack)
+function stack(c::Context)
+  stk = []
+  isempty(c.stack) && return stk
+  for i = 2:length(c.stack)-1
+    isa(c.stack[i], Frame) && isa(c.stack[i-1], Line) && push!(stk, c.stack[i-1])
+  end
+  isa(c.stack[end], Line) && push!(stk, c.stack[end])
+  return stk
+end
 
 function interpv(ctx::Context, graph::IVertex)
   haskey(ctx.cache, graph) && return ctx.cache[graph]
@@ -32,7 +38,7 @@ interpret(ctx::Context, graph::IVertex, args...) =
 # Composable interpreter pieces
 
 function interpline(f)
-  function interp(ctx::Context, l::Line, v)
+  function interp(ctx::Context, l::Union{Line,Frame}, v)
     push!(ctx.stack, l)
     val = interpv(ctx, v)
     pop!(ctx.stack)

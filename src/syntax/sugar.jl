@@ -61,6 +61,12 @@ function normlines(ex)
   return ex′
 end
 
+immutable Frame{T}
+  f::T
+end
+
+immutable SkipFrame end
+
 # Static tuples
 
 # TODO: just use `getindex` and `tuple` to represent these?
