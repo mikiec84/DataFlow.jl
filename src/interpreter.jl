@@ -14,27 +14,27 @@ Base.setindex!(ctx::Context, v, k::Symbol) = ctx.data[k] = v
 
 stack(c::Context) = copy(c.stack)
 
-function interpret(ctx::Context, graph::IVertex, args::IVertex...)
-  graph = spliceinputs(graph, args...)
-  interpret(ctx, graph)
-end
-
-interpret(ctx::Context, graph::IVertex, args...) =
-  interpret(ctx, graph, map(constant, args)...)
-
-function interpret(ctx::Context, graph::IVertex)
+function interpv(ctx::Context, graph::IVertex)
   haskey(ctx.cache, graph) && return ctx.cache[graph]
   ctx.cache[graph] = ctx.interp(ctx, value(graph), inputs(graph)...)
 end
 
-interpret(ctx::Context, xs::Tuple) = map(x -> interpret(ctx, x), xs)
+interpv(ctx::Context, xs::Tuple) = map(x -> interpv(ctx, x), xs)
+
+function interpret(ctx::Context, graph::IVertex, args::IVertex...)
+  graph = spliceinputs(graph, args...)
+  interpv(ctx, graph)
+end
+
+interpret(ctx::Context, graph::IVertex, args...) =
+  interpret(ctx, graph, map(constant, args)...)
 
 # Composable interpreter pieces
 
 function interpline(f)
   function interp(ctx::Context, l::Line, v)
     push!(ctx.stack, l)
-    val = interpret(ctx, v)
+    val = interpv(ctx, v)
     pop!(ctx.stack)
     return val
   end
@@ -48,7 +48,7 @@ end
 
 function interptuple(f)
   function interp(ctx::Context, s::Split, xs)
-    xs = interpret(ctx, xs)
+    xs = interpv(ctx, xs)
     isa(xs, Vertex) && value(xs) == tuple ? inputs(xs)[s.n] :
     isa(xs, Tuple) ? xs[s.n] :
     f(ctx, s, constant(xs))
@@ -63,10 +63,10 @@ function interplambda(f)
 end
 
 const interpid =
-  interpconst((ctx, f, xs...) -> vertex(f, map(constant, interpret(ctx, xs))...))
+  interpconst((ctx, f, xs...) -> vertex(f, map(constant, interpv(ctx, xs))...))
 
 const interpeval =
-  interpline(interplambda(interpconst(interptuple((ctx, f, xs...) -> f(interpret(ctx, xs)...)))))
+  interpline(interplambda(interpconst(interptuple((ctx, f, xs...) -> f(interpv(ctx, xs)...)))))
 
 interpret(graph::IVertex, args...) =
   interpret(Context(interpeval), graph, args...)
