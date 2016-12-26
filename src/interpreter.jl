@@ -50,23 +50,22 @@ function iline(f, ctx::Context, l::Union{Line,Frame}, v)
   return val
 end
 
-function ituple(f, ctx::Context, s::Split, xs)
-  xs = interpv(ctx, xs)
-  isa(xs, Vertex) && value(xs) == tuple ? inputs(xs)[s.n] :
-  isa(xs, Tuple) ? xs[s.n] :
-    f(ctx, s, constant(xs))
-end
-
 ilambda(f, ctx::Context, ::Flosure, body, vars...) =
   (xs...) -> interpret(ctx, flopen(body), vars..., xs...)
 
 iargs(cb, ctx::Context, f, xs...) = cb(f, interpv(ctx, xs)...)
 
-for m in :[iconst, iline, ituple, ilambda].args
-  @eval $m(f, ctx::Context, args...) = f(ctx, args...)
+function ituple(f, s::Split, xs)
+  isa(xs, Vertex) && value(xs) == tuple ? inputs(xs)[s.n] :
+  isa(xs, Tuple) ? xs[s.n] :
+    f(s, constant(xs))
 end
 
-interpeval = mux(iline, ilambda, iconst, ituple, iargs, (f, xs...) -> f(xs...))
+for m in :[iconst, iline, ilambda, ituple].args
+  @eval $m(f, args...) = f(args...)
+end
+
+interpeval = mux(iline, ilambda, iconst, iargs, ituple, (f, xs...) -> f(xs...))
 
 interpret(graph::IVertex, args...) =
   interpret(Context(interpeval), graph, args...)
