@@ -1,3 +1,7 @@
+mux(f) = f
+mux(m, f) = (xs...) -> m(f, xs...)
+mux(ms...) = foldr(mux, ms)
+
 type Context{T}
   interp::T
   cache::ObjectIdDict
@@ -35,44 +39,34 @@ end
 interpret(ctx::Context, graph::IVertex, args...) =
   interpret(ctx, graph, map(constant, args)...)
 
-# Composable interpreter pieces
+# The `ifoo` convention denotes a piece of interpreter middleware
 
-function interpline(f)
-  function interp(ctx::Context, l::Union{Line,Frame}, v)
-    push!(ctx.stack, l)
-    val = interpv(ctx, v)
-    pop!(ctx.stack)
-    return val
-  end
-  interp(args...) = f(args...)
+iconst(f, ctx::Context, x::Constant) = x.value
+
+function iline(f, ctx::Context, l::Union{Line,Frame}, v)
+  push!(ctx.stack, l)
+  val = interpv(ctx, v)
+  pop!(ctx.stack)
+  return val
 end
 
-function interpconst(f)
-  interp(ctx::Context, x::Constant) = x.value
-  interp(args...) = f(args...)
-end
-
-function interptuple(f)
-  function interp(ctx::Context, s::Split, xs)
-    xs = interpv(ctx, xs)
-    isa(xs, Vertex) && value(xs) == tuple ? inputs(xs)[s.n] :
-    isa(xs, Tuple) ? xs[s.n] :
+function ituple(f, ctx::Context, s::Split, xs)
+  xs = interpv(ctx, xs)
+  isa(xs, Vertex) && value(xs) == tuple ? inputs(xs)[s.n] :
+  isa(xs, Tuple) ? xs[s.n] :
     f(ctx, s, constant(xs))
-  end
-  interp(args...) = f(args...)
 end
 
-function interplambda(f)
-  interp(ctx::Context, f::Flosure, body, vars...) =
-    (xs...) -> interpret(ctx, flopen(body), vars..., xs...)
-  interp(args...) = f(args...)
+ilambda(f, ctx::Context, ::Flosure, body, vars...) =
+  (xs...) -> interpret(ctx, flopen(body), vars..., xs...)
+
+iargs(cb, ctx::Context, f, xs...) = cb(f, interpv(ctx, xs)...)
+
+for m in :[iconst, iline, ituple, ilambda].args
+  @eval $m(f, ctx::Context, args...) = f(ctx, args...)
 end
 
-const interpid =
-  interpconst((ctx, f, xs...) -> vertex(f, map(constant, interpv(ctx, xs))...))
-
-const interpeval =
-  interpline(interplambda(interpconst(interptuple((ctx, f, xs...) -> f(interpv(ctx, xs)...)))))
+interpeval = mux(iline, ilambda, iconst, ituple, iargs, (f, xs...) -> f(xs...))
 
 interpret(graph::IVertex, args...) =
   interpret(Context(interpeval), graph, args...)
