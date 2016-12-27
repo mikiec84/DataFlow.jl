@@ -50,6 +50,8 @@ function iline(f, ctx::Context, l::Union{Line,Frame}, v)
   return val
 end
 
+ilinev(f, ctx::Context, l::Union{Line,Frame}, v) = vertex(l, iline(f, ctx, l, v))
+
 ilambda(f, ctx::Context, ::Flosure, body, vars...) =
   (xs...) -> interpret(ctx, flopen(body), vars..., xs...)
 
@@ -61,7 +63,7 @@ function ituple(f, s::Split, xs)
     f(s, constant(xs))
 end
 
-for m in :[iconst, iline, ilambda, ituple].args
+for m in :[iconst, iline, ilinev, ilambda, ituple].args
   @eval $m(f, args...) = f(args...)
 end
 
