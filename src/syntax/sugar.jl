@@ -61,6 +61,24 @@ function normlines(ex)
   return ex′
 end
 
+function applylines(ex)
+  ex′ = :(;)
+  for ex in ex.args
+    @capture(ex, (var_ = val_) | val_)
+    val = MacroTools.postwalk(val) do ex
+      @capture(ex, l_Frame(x_)) && return x # Ignore frames for now
+      @capture(ex, l_Line(x_)) || return ex
+      push!(ex′.args, Expr(:line, l.line, symbol(l.file)))
+      @gensym edge
+      push!(ex′.args, :($edge = $x))
+      return edge
+    end
+    isexpr(val, Symbol) ? (ex′.args[end].args[1] = val) :
+      push!(ex′.args, var == nothing ? :($var = $val) : val)
+  end
+  return ex′
+end
+
 immutable Frame{T}
   f::T
 end
