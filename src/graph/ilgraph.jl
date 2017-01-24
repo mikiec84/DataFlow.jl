@@ -31,7 +31,7 @@ vertex(x::Vertex) = convert(IVertex{Any}, x)
 function walk!(v::IVertex, pre, post, cache = ODict())
   haskey(cache, v) && return cache[v]::typeof(v)
   cache[v] = v′ = pre(v)
-  map!(v -> walk!(v, pre, post, cache), v′.inputs)
+  map!(v -> walk!(v, pre, post, cache), v′.inputs, v′.inputs)
   cache[v] = post(v′)
 end
 

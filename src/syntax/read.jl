@@ -14,7 +14,7 @@ function bindings(ex)
 end
 
 function normedges(ex)
-  map!(ex.args) do ex
+  map!(ex.args, ex.args) do ex
     isline(ex) ? ex :
     @capture(ex, _ = _) ? ex :
     :($(gensym("edge")) = $ex)
