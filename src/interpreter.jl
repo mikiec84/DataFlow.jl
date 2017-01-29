@@ -74,6 +74,8 @@ interpret(graph::IVertex, args...) =
 
 # Error Handling
 
+import Juno: errmsg, errtrace
+
 totrace(stack) = [StackFrame(:none, Symbol(line.file), line.line)
                   for line in stack]
 
@@ -81,3 +83,6 @@ type Exception{T}
   err::T
   trace::StackTrace
 end
+
+errmsg(e::Exception) = errmsg(e.err)
+errtrace(e::Exception, bt) = errtrace(e.err, [e.trace..., bt...])
