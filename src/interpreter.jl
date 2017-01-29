@@ -18,9 +18,9 @@ function stack(c::Context)
   stk = []
   isempty(c.stack) && return stk
   for i = 2:length(c.stack)-1
-    isa(c.stack[i], Frame) && isa(c.stack[i-1], Line) && push!(stk, c.stack[i-1])
+    isa(c.stack[i], Frame) && isa(c.stack[i-1], Line) && unshift!(stk, c.stack[i-1])
   end
-  isa(c.stack[end], Line) && push!(stk, c.stack[end])
+  isa(c.stack[end], Line) && unshift!(stk, c.stack[end])
   return stk
 end
 
