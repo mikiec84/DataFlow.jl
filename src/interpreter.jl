@@ -17,10 +17,13 @@ Base.setindex!(ctx::Context, v, k::Symbol) = ctx.data[k] = v
 function stack(c::Context)
   stk = []
   isempty(c.stack) && return stk
-  for i = 2:length(c.stack)-1
-    isa(c.stack[i], Frame) && isa(c.stack[i-1], Line) && unshift!(stk, c.stack[i-1])
+  frame = nothing
+  for i = 1:length(c.stack)
+    isa(c.stack[i], Frame) || continue
+    i > 1 && isa(c.stack[i-1], Line) && unshift!(stk, (frame, c.stack[i-1]))
+    frame = c.stack[i].f
   end
-  isa(c.stack[end], Line) && unshift!(stk, c.stack[end])
+  isa(c.stack[end], Line) && unshift!(stk, (frame, c.stack[end]))
   return stk
 end
 
@@ -76,8 +79,12 @@ interpret(graph::IVertex, args...) =
 
 import Juno: errmsg, errtrace
 
-totrace(stack) = [StackFrame(:none, Symbol(line.file), line.line)
-                  for line in stack]
+framename(f::Function) = typeof(f).name.mt.name
+framename(f::Void) = Symbol("<none>")
+framename(x) = symbol(string(typeof(x)))
+
+totrace(stack) = [StackFrame(framename(f), Symbol(line.file), line.line)
+                  for (f, line) in stack]
 
 type Exception{T}
   err::T
