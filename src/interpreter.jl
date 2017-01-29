@@ -71,3 +71,13 @@ interpeval = mux(iline, ilambda, iconst, iargs, ituple, (f, xs...) -> f(xs...))
 
 interpret(graph::IVertex, args...) =
   interpret(Context(interpeval), graph, args...)
+
+# Error Handling
+
+totrace(stack) = [StackFrame(:none, Symbol(line.file), line.line)
+                  for line in stack]
+
+type Exception{T}
+  err::T
+  trace::StackTrace
+end
